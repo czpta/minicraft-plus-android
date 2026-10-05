@@ -1,0 +1,126 @@
+plugins {
+    id 'application'
+    id 'maven-publish'
+}
+
+allprojects {
+    apply plugin: "java"
+    apply plugin: "application"
+
+    version = "2.3.0-infdev3"
+
+    sourceCompatibility = 8
+    [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    sourceSets.main {
+        java {
+            srcDir "java"
+        }
+        resources {
+            srcDir "resources"
+        }
+    }
+
+    dependencies {
+        implementation 'org.jetbrains:annotations:23.0.0'
+        implementation 'org.tinylog:tinylog-api:2.4.1'
+        implementation 'org.tinylog:tinylog-impl:2.4.1'
+    }
+}
+
+project(":common") {
+    dependencies {
+
+    }
+}
+
+project(":client") {
+    archivesBaseName = "minicraft-plus"
+
+    repositories {
+        maven { url "https://plugins.gradle.org/m2/" }
+        maven { url "https://jitpack.io" }
+    }
+
+    dependencies {
+        implementation project(":common")
+
+        implementation 'org.json:json:20220320'
+        implementation 'com.konghq:unirest-java:3.13.10'
+        implementation 'com.badlogicgames.gdx:gdx:1.11.0'
+        implementation 'com.badlogicgames.gdx:gdx-box2d:1.11.0'
+        implementation 'com.badlogicgames.gdx:gdx-controllers:1.9.13'
+        implementation 'com.badlogicgames.jamepad:jamepad:2.0.20.0'
+    }
+
+    application {
+        mainClass = 'minicraft.core.Game'
+    }
+}
+
+project(":server") {
+
+    archivesBaseName = "minicraft-plus-server"
+
+    dependencies {
+        implementation project(":common")
+    }
+
+    application {
+        mainClass = 'minicraft.core.Server'
+    }
+}
+
+// Building the root project actually just builds the client project.
+dependencies {
+    implementation project(":client")
+}
+
+// Running the root project actually just runs the client project
+application {
+    mainClass = 'minicraft.core.Game'
+}
+
+// Build a runnable game distribution.
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'minicraft.core.Game',
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version,
+                'SplashScreen-Image': "Minicraft_Splash_Screen_3.png")
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from files(sourceSets.main.output.classesDirs)
+    from files(sourceSets.main.output.resourcesDir)
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+}
+
+publishing {
+	repositories {
+		maven {
+			name = "GitHubPackages"
+			url = "https://maven.pkg.github.com/MinicraftPlus/minicraft-plus-revived"
+			credentials {
+				username = System.getenv("GITHUB_ACTOR")
+				password = System.getenv("GITHUB_TOKEN")
+			}
+		}
+	}
+}
+
+// Don't override if we're building a tar package.
+tasks.withType(Tar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+tasks.withType(Zip) {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
