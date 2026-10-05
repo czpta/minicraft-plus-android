@@ -43,6 +43,8 @@ import minicraft.item.TileItem;
 import minicraft.item.ToolItem;
 import minicraft.item.ToolType;
 import minicraft.level.Level;
+import minicraft.level.tile.HoleTile;
+import minicraft.level.tile.InfiniteFallTile;
 import minicraft.level.tile.LavaTile;
 import minicraft.level.tile.Tile;
 import minicraft.level.tile.Tiles;
@@ -62,6 +64,7 @@ import minicraft.util.Vector2;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -1203,6 +1206,66 @@ public class Player extends Mob implements ItemHolder, ClientTickable {
 		findStartPos(level, true);
 	}
 
+	private static final int SPAWN_SHORE_MARGIN = 3; // tiles of dry land wanted around the spawn tile
+
+	private static boolean isDryLand(Tile t) {
+		return !(t instanceof WaterTile || t instanceof LavaTile || t instanceof HoleTile || t instanceof InfiniteFallTile);
+	}
+
+	/**
+	 * Narrows spawn candidates to ones on the main landmass (a connected area of non-liquid tiles at least half the size of
+	 * the biggest one) and, when possible, at least {@link #SPAWN_SHORE_MARGIN} tiles from any water, so a new player is
+	 * never dropped onto a small islet or open water that has to be swum.
+	 * Falls back to the original candidates if nothing qualifies.
+	 */
+	private static List<Point> preferMainland(Level level, List<Point> candidates) {
+		final int w = level.w, h = level.h;
+		int[] comp = new int[w * h]; // -1: not dry land, 0: unvisited, >0: landmass id
+		for (int y = 0; y < h; y++)
+			for (int x = 0; x < w; x++)
+				if (!isDryLand(level.getTile(x, y))) comp[x + y * w] = -1;
+
+		ArrayList<Integer> sizes = new ArrayList<>();
+		sizes.add(0);
+		int[] queue = new int[w * h];
+		int largest = 0;
+		for (int start = 0; start < w * h; start++) {
+			if (comp[start] != 0) continue;
+			int id = sizes.size(), head = 0, tail = 0;
+			queue[tail++] = start;
+			comp[start] = id;
+			while (head < tail) {
+				int c = queue[head++], x = c % w, y = c / w;
+				if (x > 0 && comp[c - 1] == 0) { comp[c - 1] = id; queue[tail++] = c - 1; }
+				if (x < w - 1 && comp[c + 1] == 0) { comp[c + 1] = id; queue[tail++] = c + 1; }
+				if (y > 0 && comp[c - w] == 0) { comp[c - w] = id; queue[tail++] = c - w; }
+				if (y < h - 1 && comp[c + w] == 0) { comp[c + w] = id; queue[tail++] = c + w; }
+			}
+			sizes.add(tail);
+			largest = Math.max(largest, tail);
+		}
+
+		int minSize = Math.max(1, largest / 2);
+		ArrayList<Point> main = new ArrayList<>(), inland = new ArrayList<>();
+		for (Point p : candidates) {
+			int id = comp[p.x + p.y * w];
+			if (id <= 0 || sizes.get(id) < minSize) continue;
+			main.add(p);
+			boolean dry = true;
+			for (int dy = -SPAWN_SHORE_MARGIN; dy <= SPAWN_SHORE_MARGIN && dry; dy++)
+				for (int dx = -SPAWN_SHORE_MARGIN; dx <= SPAWN_SHORE_MARGIN; dx++) {
+					int x = p.x + dx, y = p.y + dy;
+					if (x < 0 || y < 0 || x >= w || y >= h || comp[x + y * w] < 0) { dry = false; break; }
+				}
+			if (dry) inland.add(p);
+		}
+
+		Logging.WORLD.debug("Spawn search: {} of {} candidates on the main landmass ({} tiles), {} inland.",
+			main.size(), candidates.size(), largest, inland.size());
+		if (!inland.isEmpty()) return inland;
+		return main.isEmpty() ? candidates : main;
+	}
+
 	public void findStartPos(Level level, boolean setSpawn) {
 		Point spawnPos;
 
@@ -1213,6 +1276,10 @@ public class Player extends Mob implements ItemHolder, ClientTickable {
 
 		if (spawnTilePositions.size() == 0)
 			spawnTilePositions.addAll(level.getMatchingTiles((t, x, y) -> t.mayPass(level, x, y, Player.this)));
+
+		// Never start on a tiny islet or on the shore where the first move is a swim: keep to the main landmass.
+		if (spawnTilePositions.size() > 1)
+			spawnTilePositions = preferMainland(level, spawnTilePositions);
 
 		// There are no tiles in the entire map which the player is allowed to stand on. Not likely.
 		if (spawnTilePositions.size() == 0) {
