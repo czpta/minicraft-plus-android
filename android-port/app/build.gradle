@@ -1,0 +1,54 @@
+plugins { id 'com.android.application' }
+
+def srcRoot = file('../../src')
+def genDir = layout.buildDirectory.dir('port').get().asFile
+
+android {
+    namespace 'com.zapata.minicraftplus'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.zapata.minicraftplus'
+        minSdk 26
+        targetSdk 33            // AYN Thor ships Android 13
+        versionCode 1
+        versionName '2.3.0-infdev3-thor1'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    sourceSets.main {
+        java.srcDirs = ['src/main/java', "$genDir/java"]
+        resources.srcDirs = ["$genDir/resources"]
+        assets.srcDirs = ["$genDir/assets"]
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.debug }
+    }
+    packagingOptions { resources { excludes += ['META-INF/**'] } }
+    lint { abortOnError false; checkReleaseBuilds false }
+}
+
+configurations { jsonSources }
+dependencies {
+    jsonSources 'org.json:json:20220320:sources@jar'
+    implementation 'org.jetbrains:annotations:23.0.0'
+    implementation 'org.tinylog:tinylog-api:2.4.1'
+    implementation 'org.tinylog:tinylog-impl:2.4.1'
+    implementation 'com.konghq:unirest-java:3.13.10'
+}
+
+// Copies + patches the unmodified desktop sources into build/port before every build.
+// Android ships an older org.json that shadows ours at runtime, so compile the library under its own package.
+tasks.register('unpackJson', Sync) {
+    from { zipTree(configurations.jsonSources.singleFile) }
+    into layout.buildDirectory.dir('jsonsrc')
+}
+tasks.register('preparePortSources', Exec) {
+    dependsOn 'unpackJson'
+    inputs.dir(srcRoot); inputs.dir('../overlay'); inputs.file('../prepare_sources.py')
+    outputs.dir(genDir)
+    commandLine 'python3', '../prepare_sources.py', srcRoot.absolutePath, file('../overlay').absolutePath, genDir.absolutePath, layout.buildDirectory.dir('jsonsrc').get().asFile.absolutePath
+}
+preBuild.dependsOn 'preparePortSources'
