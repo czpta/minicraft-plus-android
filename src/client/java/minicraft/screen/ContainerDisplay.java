@@ -319,7 +319,8 @@ public class ContainerDisplay extends Display {
 
 				Item fromItem = from.get(fromSel);
 
-				boolean transferAll = input.getMappedKey("shift").isDown() || !(fromItem instanceof StackableItem) || ((StackableItem) fromItem).count == 1;
+				boolean transferAll = input.getMappedKey("shift").isDown() || input.buttonDown(ControllerButton.RIGHTBUMPER) || // R1 held = whole stack on a gamepad
+					 !(fromItem instanceof StackableItem) || ((StackableItem) fromItem).count == 1;
 
 				Item toItem = fromItem.copy();
 

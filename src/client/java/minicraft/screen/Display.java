@@ -77,8 +77,8 @@ public class Display {
 			int prevSel = selection;
 
 			String shift = menus[selection].getCurEntry() instanceof ArrayEntry ? "shift+" : "";
-			if (input.getMappedKey(shift + "cursor-left").isClicked() || input.leftTriggerPressed()) selection--;
-			if (input.getMappedKey(shift + "cursor-right").isClicked() || input.rightTriggerPressed()) selection++;
+			if (input.inputPressed(shift + "cursor-left") || input.leftTriggerPressed()) selection--; // inputPressed: keyboard or D-pad
+			if (input.inputPressed(shift + "cursor-right") || input.rightTriggerPressed()) selection++;
 
 			if (prevSel != selection) {
 				Sound.play("select");
