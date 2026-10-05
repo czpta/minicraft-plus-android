@@ -292,7 +292,7 @@ public class ResourcePackDisplay extends Display {
 	@Override
 	public void tick(InputHandler input) {
 		// Overrides the default tick handler.
-		if (input.getMappedKey("cursor-right").isClicked()) { // Move the selected pack down.
+		if (input.inputPressed("cursor-right")) { // Move the selected pack down.
 			if (menus[1].getSelection() < resourcePacks.size() - 2) { // Only if it has space to move down (and stay above default)
 				int i = menus[1].getSelection();
 				ResourcePack swap = resourcePacks.get(i + 1);
@@ -305,7 +305,7 @@ public class ResourcePackDisplay extends Display {
 			}
 
 			return;
-		} else if (input.getMappedKey("cursor-left").isClicked()) { // Move the selected pack up.
+		} else if (input.inputPressed("cursor-left")) { // Move the selected pack up.
 			if (menus[1].getSelection() > 0 && resourcePacks.get(menus[1].getSelection()) != defaultPack) {
 				int i = menus[1].getSelection();
 				ResourcePack swap = resourcePacks.get(i - 1);
@@ -318,7 +318,7 @@ public class ResourcePackDisplay extends Display {
 			}
 
 			return;
-		} else if (input.getMappedKey("menu").isClicked()) {
+		} else if (input.inputPressed("menu")) {
 			ResourcePack pack = resourcePacks.get(menus[1].getSelection());
 			Game.setDisplay(new PopupDisplay(null, pack.name, pack.description));
 		}

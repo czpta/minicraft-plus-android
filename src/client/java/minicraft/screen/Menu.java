@@ -209,7 +209,7 @@ public class Menu {
 		if (prevSel != selection && selectionSearcher != 0) selection = prevSel;
 
 		if (useSearcherBar) {
-			if (input.getMappedKey("searcher-bar").isClicked()) {
+			if (input.inputPressed("searcher-bar")) {
 				searcherBarActive = !searcherBarActive;
 				input.addKeyTyped("", null); // clear pressed key
 			}

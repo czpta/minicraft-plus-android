@@ -106,8 +106,8 @@ public class MainActivity extends Activity {
 			})
 			.setNeutralButton("Control map", (d, w) -> new AlertDialog.Builder(this).setTitle("Control map").setMessage(
 				"D-pad / left stick: move, menu cursor\nA: attack / select\nB (or Back): exit / back\nX: inventory / menu\nY: crafting\n"
-				+ "L1: pick up   R1: drop one   R3: drop stack\nL2 / R2: previous / next tab\nStart: pause (and inventory search)\n\n"
-				+ "Hold SELECT +\n  A: quick-save\n  B: toggle HUD\n  X: potion effects\n  Y: player info\n  L1: screenshot\n  R1: simple potion list\n\nL3: quest panel").setPositiveButton("OK", null).show())
+				+ "L1: pick up   R1: drop one   R3: drop stack\nL2 / R2: previous / next tab\nStart: pause (and inventory search)\nD-pad / stick: hold to repeat in menus\nChest / creative picker: hold R1 + A = whole stack\nQuests screen: hold R1 + D-pad = scroll\n\n"
+				+ "Hold SELECT +\n  A: quick-save\n  B: toggle HUD\n  X: potion effects\n  Y: player info\n  L1: screenshot\n  R1: simple potion list\n  L2 / R2: page up / down (search)\n\nL3: quest panel").setPositiveButton("OK", null).show())
 			.setNegativeButton("Cancel", null).show();
 	}
 

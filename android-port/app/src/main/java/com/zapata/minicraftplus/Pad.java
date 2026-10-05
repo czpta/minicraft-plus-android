@@ -16,5 +16,7 @@ public final class Pad {
 		if (pressed && !down[i]) just[i] = true;
 		down[i] = pressed;
 	}
+	/** A repeat "press" for a held button (menu auto-repeat); does not change the held state. */
+	public static synchronized void pulse(ControllerButton b) { just[b.ordinal()] = true; }
 	public static synchronized boolean consumeJust(int i) { boolean v = just[i]; just[i] = false; return v; }
 }

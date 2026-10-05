@@ -163,7 +163,7 @@ public class PlayerInvDisplay extends Display {
 					Item fromItem = from.get(fromSel);
 
 					boolean transferAll;
-					if (input.getMappedKey("SHIFT-SELECT").isClicked()) {
+					if (input.getMappedKey("SHIFT-SELECT").isClicked() || (input.inputPressed("SELECT") && input.buttonDown(ControllerButton.RIGHTBUMPER))) {
 						transferAll = true;
 					} else if (input.inputPressed("SELECT")) { // If stack limit is available, this can transfer whole stack
 						transferAll = !(fromItem instanceof StackableItem);
