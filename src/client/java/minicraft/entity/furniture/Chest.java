@@ -73,6 +73,8 @@ public class Chest extends Furniture implements ItemHolder {
 	public boolean interact(Player player, @Nullable Item item, Direction attackDir) {
 		if (inventory.invSize() == 0)
 			return super.interact(player, item, attackDir);
+		if (item == null) // punched while it still holds items
+			minicraft.core.Game.notifications.add("Empty the chest before picking it up");
 		return false;
 	}
 

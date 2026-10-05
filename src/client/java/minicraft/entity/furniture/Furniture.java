@@ -86,10 +86,12 @@ public class Furniture extends Entity {
 		return true; // Furniture blocks all entities, even non-solid ones like arrows.
 	}
 
+	/**
+	 * Furniture used to slide when the player walked into it (Entity#tryPush). That made workbenches, chests and the like
+	 * easy to shove around by accident, so they are now fixed in place: punch one to pick it up instead.
+	 */
 	@Override
 	protected void touchedBy(Entity entity) {
-		if (entity instanceof Player)
-			tryPush((Player) entity);
 	}
 
 	/**
@@ -106,7 +108,19 @@ public class Furniture extends Entity {
 			player.activeItem = new FurnitureItem(this); // Make this the player's current item.
 			return true;
 		}
+		if (item == null && canPunchPickUp()) { // A punch (Player#hurt calls interact with no item): pick it up into the inventory.
+			Sound.play("monsterhurt");
+			remove();
+			Item leftover = player.getInventory().add(new FurnitureItem(this));
+			if (leftover != null) player.getLevel().dropItem(player.x, player.y, leftover); // inventory full: drop at the player's feet
+			return true;
+		}
 		return false;
+	}
+
+	/** Whether punching this furniture picks it up. Subclasses with their own interact() (spawners, TNT, ...) are not affected. */
+	protected boolean canPunchPickUp() {
+		return true;
 	}
 
 	@Override

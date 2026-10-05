@@ -13,8 +13,8 @@ import minicraft.core.AndroidBridge;
 public class ImeView extends View {
 	public ImeView(Context c) {
 		super(c);
-		setFocusable(true);
-		setFocusableInTouchMode(true);
+		setFocusable(false); // only focusable while a game text field is active, see MainActivity#pollTextFields
+		setFocusableInTouchMode(false);
 	}
 
 	@Override public boolean onCheckIsTextEditor() { return true; }

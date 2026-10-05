@@ -71,11 +71,16 @@ public class MainActivity extends Activity {
 		boolean active = AndroidBridge.textFieldActive();
 		InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
 		if (active && !textWasActive) {
+			ime.setFocusable(true);
+			ime.setFocusableInTouchMode(true);
 			ime.requestFocus();
 			imm.restartInput(ime);
 			imm.showSoftInput(ime, InputMethodManager.SHOW_FORCED);
 		} else if (!active && textWasActive) {
 			imm.hideSoftInputFromWindow(ime.getWindowToken(), 0);
+			ime.clearFocus(); // unbind the keyboard so it can't swallow hardware keys while no text field is active
+			ime.setFocusable(false);
+			ime.setFocusableInTouchMode(false);
 		}
 		textWasActive = active;
 		handler.postDelayed(this::pollTextFields, 100);
@@ -174,7 +179,8 @@ public class MainActivity extends Activity {
 
 	@Override public boolean dispatchKeyEvent(KeyEvent e) {
 		int kc = e.getKeyCode();
-		boolean dpad = kc >= KeyEvent.KEYCODE_DPAD_UP && kc <= KeyEvent.KEYCODE_DPAD_RIGHT;
+		boolean dpad = (kc >= KeyEvent.KEYCODE_DPAD_UP && kc <= KeyEvent.KEYCODE_DPAD_RIGHT)
+			|| (kc >= KeyEvent.KEYCODE_BUTTON_A && kc <= KeyEvent.KEYCODE_BUTTON_MODE); // gamepad buttons, whatever the reported source
 		if (InputRouter.isGamepadEvent(e) || kc == KeyEvent.KEYCODE_BACK || dpad) {
 			if (router.onKey(e)) { Pad.present = true; return true; }
 		}

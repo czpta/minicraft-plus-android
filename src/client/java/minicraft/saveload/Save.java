@@ -268,7 +268,77 @@ public class Save {
 		}
 	}
 
+	/** Binary world format: one deflate-compressed file per level, see {@link #writeLevelChunks}. */
+	public static final int CHUNKS_MAGIC = 0x4D434C32; // "MCL2"
+
+	/**
+	 * Writes every generated chunk of a level (stage UNFINISHED_STAIRS or DONE, so generated structures and stairs are kept),
+	 * with its stage, to {@code LevelN/chunks.bin}:
+	 * magic, palette (short count + UTF tile names), chunk count, then per chunk: x, y, stage, CHUNK_SIZE^2 palette indices
+	 * and CHUNK_SIZE^2 data values (shorts, row by row). The file is written to a temp name first, then moved into place.
+	 */
+	private void writeLevelChunks(String filename, int l) {
+		java.io.File dir = new java.io.File(location + filename + l);
+		dir.mkdirs();
+		minicraft.level.Level level = World.levels[l];
+		ChunkManager cm = level.chunkManager;
+		final int S = ChunkManager.CHUNK_SIZE;
+
+		List<Point> chunks = new ArrayList<>();
+		for (Point p : cm.getAllChunks())
+			if (cm.getChunkStage(p.x, p.y) >= ChunkManager.CHUNK_STAGE_UNFINISHED_STAIRS) chunks.add(p);
+
+		java.util.LinkedHashMap<Integer, Integer> paletteIdx = new java.util.LinkedHashMap<>(); // tile id -> palette index
+		List<String> paletteNames = new ArrayList<>();
+		short[][] tiles = new short[chunks.size()][S * S];
+		short[][] datas = new short[chunks.size()][S * S];
+		for (int c = 0; c < chunks.size(); c++) {
+			Point p = chunks.get(c);
+			for (int y = 0; y < S; y++)
+				for (int x = 0; x < S; x++) {
+					int tX = p.x * S + x, tY = p.y * S + y;
+					minicraft.level.tile.Tile t = cm.getTile(tX, tY);
+					Integer pi = paletteIdx.get((int) t.id);
+					if (pi == null) { pi = paletteNames.size(); paletteIdx.put((int) t.id, pi); paletteNames.add(t.name); }
+					tiles[c][x + y * S] = (short) (int) pi;
+					datas[c][x + y * S] = (short) cm.getData(tX, tY);
+				}
+		}
+
+		java.io.File tmp = new java.io.File(dir, "chunks.bin.tmp"), out = new java.io.File(dir, "chunks.bin");
+		try (java.io.DataOutputStream o = new java.io.DataOutputStream(new java.io.BufferedOutputStream(
+			new java.util.zip.DeflaterOutputStream(new java.io.FileOutputStream(tmp), new java.util.zip.Deflater(java.util.zip.Deflater.BEST_SPEED)), 1 << 16))) {
+			o.writeInt(CHUNKS_MAGIC);
+			o.writeShort(paletteNames.size());
+			for (String n : paletteNames) o.writeUTF(n);
+			o.writeInt(chunks.size());
+			for (int c = 0; c < chunks.size(); c++) {
+				o.writeInt(chunks.get(c).x);
+				o.writeInt(chunks.get(c).y);
+				o.writeByte(cm.getChunkStage(chunks.get(c).x, chunks.get(c).y));
+				for (short v : tiles[c]) o.writeShort(v);
+				for (short v : datas[c]) o.writeShort(v);
+			}
+		} catch (IOException e) {
+			minicraft.core.CrashHandler.errorHandle(e);
+			return;
+		}
+		try {
+			java.nio.file.Files.move(tmp.toPath(), out.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		} catch (IOException e) {
+			minicraft.core.CrashHandler.errorHandle(e);
+			return;
+		}
+		// Drop the old text-format files of this level (index + t.x.y + d.x.y) so they can't be mistaken for current data.
+		String[] old = dir.list((d, n) -> n.equals("index" + extension) || n.startsWith("t.") || n.startsWith("d."));
+		if (old != null) for (String n : old) new java.io.File(dir, n).delete();
+
+		LoadingDisplay.progress(100f / World.levels.length);
+		Renderer.render();
+	}
+
 	private void writeWorld(String filename) {
+		long saveStart = System.nanoTime();
 		LoadingDisplay.setMessage("minicraft.displays.loading.message.levels");
 		for (int l = 0; l < World.levels.length; l++) {
 			/*String worldSize = String.valueOf(Settings.get("size"));
@@ -284,26 +354,9 @@ public class Save {
 			}
 
 			writeToFile(location + filename + l + extension, data);*/
-			new File(location + filename + l).mkdir();
-			List<String> index = new ArrayList<>();
-			ChunkManager c = World.levels[l].chunkManager;
-			for(Point p : c.getAllChunks()) {
-				if(c.getChunkStage(p.x, p.y) != ChunkManager.CHUNK_STAGE_DONE)
-					continue;
-				index.add(String.valueOf(p.x));
-				index.add(String.valueOf(p.y));
-				List<String> tiles = new ArrayList<>();
-				for(int x = 0; x < ChunkManager.CHUNK_SIZE; x++)
-					for(int y = 0; y < ChunkManager.CHUNK_SIZE; y++) {
-						int tX = x+p.x*ChunkManager.CHUNK_SIZE, tY = y+p.y*ChunkManager.CHUNK_SIZE;
-						tiles.add(String.valueOf(World.levels[l].getTile(tX, tY).name));
-						data.add(String.valueOf(World.levels[l].getData(tX, tY)));
-					}
-				writeToFile(location + filename + l + "/d." + String.valueOf(p.x) + "." + String.valueOf(p.y) + extension, data);
-				writeToFile(location + filename + l + "/t." + String.valueOf(p.x) + "." + String.valueOf(p.y) + extension, tiles);
-			}
-			writeToFile(location + filename + l + "/index" + extension, index);
+			writeLevelChunks(filename, l);
 		}
+		minicraft.util.Logging.SAVELOAD.debug("World chunks saved in {} ms.", (System.nanoTime() - saveStart) / 1_000_000);
 
 		{ // Advancements
 			JSONObject fileObj = new JSONObject();

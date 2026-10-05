@@ -979,6 +979,35 @@ public class Load {
 		}
 	}
 
+	/** Reads {@code LevelN/chunks.bin}, see {@code Save#writeLevelChunks}. Restores each chunk's generation stage. */
+	private void loadChunksBinary(java.io.File f, ChunkManager map, Level curLevel) {
+		long start = System.nanoTime();
+		final int S = ChunkManager.CHUNK_SIZE;
+		try (java.io.DataInputStream in = new java.io.DataInputStream(new java.io.BufferedInputStream(
+			new java.util.zip.InflaterInputStream(new java.io.FileInputStream(f)), 1 << 16))) {
+			if (in.readInt() != Save.CHUNKS_MAGIC) throw new IOException("Not a chunk file: " + f);
+			minicraft.level.tile.Tile[] palette = new minicraft.level.tile.Tile[in.readShort()];
+			for (int i = 0; i < palette.length; i++) palette[i] = Tiles.get(in.readUTF());
+			int count = in.readInt();
+			short[] tiles = new short[S * S], datas = new short[S * S];
+			for (int c = 0; c < count; c++) {
+				int cx = in.readInt(), cy = in.readInt(), stage = in.readByte();
+				for (int i = 0; i < tiles.length; i++) tiles[i] = in.readShort();
+				for (int i = 0; i < datas.length; i++) datas[i] = in.readShort();
+				for (int y = 0; y < S; y++)
+					for (int x = 0; x < S; x++) {
+						int tX = cx * S + x, tY = cy * S + y;
+						map.setTile(tX, tY, palette[tiles[x + y * S]], datas[x + y * S]);
+						map.getTile(tX, tY).onTileSet(curLevel, tX, tY);
+					}
+				map.setChunkStage(cx, cy, stage);
+			}
+			Logging.SAVELOAD.debug("Loaded {} chunks of {} in {} ms.", count, f.getParentFile().getName(), (System.nanoTime() - start) / 1_000_000);
+		} catch (IOException e) {
+			minicraft.core.CrashHandler.errorHandle(e);
+		}
+	}
+
 	private void loadWorldInf(String filename) {
 		loadFromFile(location + "/Game" + extension, extradata);
 		long seed = Long.parseLong(extradata.get(1));
@@ -989,11 +1018,7 @@ public class Load {
 			long levelSeed = levelSeeds.nextLong();
 			LoadingDisplay.setMessage(Level.getDepthString(l), false);
 			int lvlidx = World.lvlIdx(l);
-			loadFromFile(location + filename + lvlidx + "/index" + extension, data);
-
-			Set<Point> chunks = new HashSet<>();
-			while(data.size() >= 2)
-				chunks.add(new Point(Integer.parseInt(data.remove(0)), Integer.parseInt(data.remove(0))));
+			java.io.File binFile = new java.io.File(location + filename + lvlidx + "/chunks.bin");
 
 			ChunkManager map = new ChunkManager();
 			Level parent = World.levels[World.lvlIdx(l + 1)];
@@ -1001,6 +1026,13 @@ public class Load {
 
 			Level curLevel = World.levels[lvlidx];
 			curLevel.chunkManager = map;
+			Set<Point> chunks = new HashSet<>();
+			if (binFile.exists()) {
+				loadChunksBinary(binFile, map, curLevel);
+			} else { // legacy text-format save (index + t.x.y + d.x.y)
+			loadFromFile(location + filename + lvlidx + "/index" + extension, data);
+			while(data.size() >= 2)
+				chunks.add(new Point(Integer.parseInt(data.remove(0)), Integer.parseInt(data.remove(0))));
 			for(Point c : chunks) {
 				loadFromFile(location + filename + lvlidx + "/t." + c.x + "." + c.y + extension, data);
 				loadFromFile(location + filename + lvlidx + "/d." + c.x + "." + c.y + extension, extradata);
@@ -1013,6 +1045,7 @@ public class Load {
 					}
 				}
 				map.setChunkStage(c.x, c.y, ChunkManager.CHUNK_STAGE_DONE);
+			}
 			}
 
 			if (Logging.logLevel) curLevel.printTileLocs(Tiles.get("Stairs Down"));
