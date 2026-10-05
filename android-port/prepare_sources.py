@@ -82,7 +82,7 @@ sub('core/Initializer.java', 'Renderer.render();', '{ long t0 = System.nanoTime(
 
 # Options menu: font + scaling live here (the desktop "OpenGL hardware acceleration" toggle means nothing on Android)
 sub('screen/OptionsMainMenuDisplay.java', 'Settings.getEntry("hwa"),',
-    'minicraft.core.AndroidBridge.fontEntry(),\n\t\t\tminicraft.core.AndroidBridge.scalingEntry(),')
+    'minicraft.core.AndroidBridge.fontEntry(),\n\t\t\tminicraft.core.AndroidBridge.layoutEntry(),')
 
 # ---- window / frame ----
 drop_imports('core/Initializer.java', r'javax\.swing\.WindowConstants|java\.awt\.(BorderLayout|Color)|java\.awt\.event\.\w+')

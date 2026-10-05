@@ -97,7 +97,6 @@ public class MainActivity extends Activity {
 		overlay.setAlpha(prefs.getInt("touchAlpha", 100) / 100f);
 		if (gear != null) gear.setAlpha(prefs.getInt("gearAlpha", 35) / 100f);
 		router.swapFace = pref("swap", false);
-		AndroidBridge.crisp = pref("crisp", true);
 		AndroidBridge.applyScale();
 		Pad.present = pad || touch;
 	}

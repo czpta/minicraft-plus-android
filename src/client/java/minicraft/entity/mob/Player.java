@@ -1248,6 +1248,7 @@ public class Player extends Mob implements ItemHolder, ClientTickable {
 		int minSize = Math.max(1, largest / 2);
 		ArrayList<Point> main = new ArrayList<>(), inland = new ArrayList<>();
 		for (Point p : candidates) {
+			if (p.x < 0 || p.y < 0 || p.x >= w || p.y >= h) continue; // placeholder chunks outside the world area are not spawn spots
 			int id = comp[p.x + p.y * w];
 			if (id <= 0 || sizes.get(id) < minSize) continue;
 			main.add(p);

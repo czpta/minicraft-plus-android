@@ -25,7 +25,6 @@ public final class AndroidBridge {
 	private static File resDir;
 	private static boolean started = false;
 	private static final Handler ui = new Handler(Looper.getMainLooper());
-	public static volatile boolean crisp = true;
 	/** Nanoseconds spent per second in game ticks, whole render() calls, and the part of render that hands pixels to the screen. */
 	public static volatile long tickNs, renderNs, presentNs;
 	public static String perf(int fps, int tps) {
@@ -118,16 +117,15 @@ public final class AndroidBridge {
 		return e;
 	}
 
-	/** Options-menu entry: crisp integer scaling vs stretch-to-fit. */
-	public static minicraft.screen.entry.ArrayEntry<String> scalingEntry() {
-		minicraft.screen.entry.ArrayEntry<String> e = new minicraft.screen.entry.ArrayEntry<String>("Scaling", new String[] { "Crisp (integer)", "Stretch to fit" });
-		e.setSelection(prefs().getBoolean("crisp", true) ? 0 : 1);
+	/** Options-menu entry: responsive full-screen layout, or the classic fixed 288x192 window. Applies on the next start. */
+	public static minicraft.screen.entry.ArrayEntry<String> layoutEntry() {
+		minicraft.screen.entry.ArrayEntry<String> e = new minicraft.screen.entry.ArrayEntry<String>("Layout", new String[] { "Fill screen", "Classic 288x192" });
+		e.setSelection("classic".equals(prefs().getString("layout", "fill")) ? 1 : 0);
 		final boolean[] armed = { false };
 		e.setChangeAction(v -> {
 			if (!armed[0]) return;
-			crisp = "Crisp (integer)".equals(v);
-			prefs().edit().putBoolean("crisp", crisp).apply();
-			applyScale();
+			prefs().edit().putString("layout", "Classic 288x192".equals(v) ? "classic" : "fill").apply();
+			minicraft.core.Game.notifications.add("Layout changes next time the game starts");
 		});
 		armed[0] = true;
 		return e;
@@ -157,17 +155,37 @@ public final class AndroidBridge {
 	public static void surfaceChanged(android.view.SurfaceHolder holder, int w, int h) {
 		Renderer.canvas.holder = holder;
 		Renderer.canvas.setSize(w, h);
+		if (!started) chooseVirtualSize(w, h); // must happen before the game thread first touches Screen (its size is fixed at class init)
+		else if (w != lastW || h != lastH) toast("Screen changed - restart the game to fit its layout to this screen");
+		lastW = w; lastH = h;
 		applyScale();
+	}
+
+	private static int lastW, lastH;
+	private static final int MIN_W = 240, MIN_H = 192; // smallest internal resolution we aim for (the classic game is 288x192)
+
+	/**
+	 * Responsive layout. The game renders at a small internal resolution that is scaled up by a whole number. We pick the pixel
+	 * scale from the real screen (largest S that still shows at least MIN_W x MIN_H game pixels) and then make the internal
+	 * resolution exactly screen/S, so the picture fills the screen with no bars and no stretching. A smaller screen simply shows
+	 * a smaller window onto the same pixel-size world (the Thor's bottom screen gets 248x216 at the same 5x as the top screen).
+	 * Layout "classic" keeps the original fixed 288x192 (letterboxed).
+	 */
+	private static void chooseVirtualSize(int w, int h) {
+		String layout = prefs().getString("layout", "fill");
+		if ("classic".equals(layout)) { Renderer.WIDTH = 288; Renderer.HEIGHT = 192; return; }
+		int s = Math.max(1, (int) Math.floor(Math.min(w / (float) MIN_W, h / (float) MIN_H)));
+		Renderer.WIDTH = Math.max(MIN_W, w / s);
+		Renderer.HEIGHT = Math.max(MIN_H, h / s);
 	}
 
 	public static void surfaceDestroyed() { Renderer.canvas.holder = null; }
 
-	/** Integer ("crisp") scaling by default; otherwise stretch-to-fit keeping the 3:2 aspect. */
+	/** Whole-number scale that fits the internal resolution in the surface (centred; leftover pixels are black). */
 	public static void applyScale() {
 		int w = Renderer.canvas.getWidth(), h = Renderer.canvas.getHeight();
 		if (w <= 0 || h <= 0) return;
-		float fit = Math.min((float) w / Renderer.WIDTH, (float) h / Renderer.HEIGHT);
-		Renderer.SCALE = crisp ? Math.max(1, (int) Math.floor(fit)) : fit;
+		Renderer.SCALE = Math.max(1, (int) Math.floor(Math.min((float) w / Renderer.WIDTH, (float) h / Renderer.HEIGHT)));
 	}
 
 	// ---- input ----

@@ -30,3 +30,18 @@ The game's own controller scheme is kept; actions it only has keyboard keys for 
 | L3 | Quest panel |
 
 Text fields use Android's keyboard. The gear button at the top centre opens settings (on-screen controls, A/B swap, scaling).
+
+## Screens and layout (responsive)
+
+The game draws at a small internal resolution and scales it up by a whole number. On start, the app picks the largest pixel
+scale that still shows at least 240x192 game pixels on the screen it is running on, then sets the internal resolution to exactly
+screen/scale - so the picture fills the screen with no bars and nothing is stretched. Pixels are the same size on every screen:
+
+| Screen | Size | Pixel scale | Internal resolution |
+|---|---|---|---|
+| AYN Thor top | 1920x1080 | 5x | 384x216 |
+| AYN Thor bottom | 1240x1080 | 5x | 248x216 (a narrower window onto the same world) |
+
+Options -> Layout -> "Classic 288x192" restores the original fixed window (letterboxed). It applies on the next start. If the app is
+moved to a different screen while running, it keeps the current layout (centred, integer scale) and asks for a restart.
+Launch on the bottom screen with: `adb shell am start --display <id> -n com.zapata.minicraftplus/.MainActivity`.
