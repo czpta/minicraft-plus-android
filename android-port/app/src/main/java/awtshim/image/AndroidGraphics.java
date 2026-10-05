@@ -18,6 +18,7 @@ class AndroidGraphics extends Graphics2D {
 
 	@Override public void drawImage(BufferedImage src, int x, int y, int w, int h, Object observer) {
 		if (canvas == null) return;
+		long t0 = System.nanoTime();
 		int sw = src.getWidth(), sh = src.getHeight();
 		if (bitmap == null || bitmap.getWidth() != sw || bitmap.getHeight() != sh)
 			bitmap = Bitmap.createBitmap(sw, sh, Bitmap.Config.ARGB_8888);
@@ -29,5 +30,6 @@ class AndroidGraphics extends Graphics2D {
 		}
 		bitmap.setPixels(px, 0, sw, 0, 0, sw, sh);
 		canvas.drawBitmap(bitmap, null, new Rect(x, y, x + w, y + h), paint);
+		minicraft.core.AndroidBridge.presentNs += System.nanoTime() - t0;
 	}
 }

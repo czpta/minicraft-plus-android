@@ -30,6 +30,12 @@ for mod in ('client', 'common'):
         # the same tree, complete, as an Android asset; unpacked at first launch for the file-based loaders
         copytree(r, os.path.join(assets, 'jarres'))
 
+# extra font sheets (unpacked next to the default pack at first launch; AndroidBridge picks the active one)
+extra = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'extra')
+for name in ('font_classic.png', 'font_monocraft.png'):
+    d = os.path.join(assets, 'jarres', 'extra_fonts'); os.makedirs(d, exist_ok=True)
+    shutil.copy(os.path.join(extra, name), d)
+
 # org.json relocated to orgjson
 for root, _, files in os.walk(os.path.join(jsonsrc, 'org', 'json')):
     for f in files:
@@ -65,6 +71,14 @@ def sub(rel, old, new, count=1):
     t = read(rel)
     if old not in t: raise SystemExit('patch text not found in %s: %s' % (rel, old))
     write(rel, t.replace(old, new, count))
+
+# per-second fps/tps line for performance work (adb logcat -s MinicraftPerf)
+sub('core/Initializer.java', 'tik = (int) Math.round(ticks * 1000D / interval); // Saves total ticks in last second',
+    'tik = (int) Math.round(ticks * 1000D / interval); // Saves total ticks in last second\n\t\t\t\tandroid.util.Log.i("MinicraftPerf", minicraft.core.AndroidBridge.perf(fra, tik));')
+
+sub('core/Initializer.java', 'Updater.tick(); // Calls the tick method (in which it calls the other tick methods throughout the code.',
+    '{ long t0 = System.nanoTime(); Updater.tick(); minicraft.core.AndroidBridge.tickNs += System.nanoTime() - t0; }')
+sub('core/Initializer.java', 'Renderer.render();', '{ long t0 = System.nanoTime(); Renderer.render(); minicraft.core.AndroidBridge.renderNs += System.nanoTime() - t0; }')
 
 # ---- window / frame ----
 drop_imports('core/Initializer.java', r'javax\.swing\.WindowConstants|java\.awt\.(BorderLayout|Color)|java\.awt\.event\.\w+')

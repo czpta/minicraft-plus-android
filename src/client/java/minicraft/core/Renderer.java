@@ -223,8 +223,8 @@ public class Renderer extends Game {
 	 * Renders the main game GUI (hearts, Stamina bolts, name of the current item, etc.)
 	 */
 	private static void renderGui() {
-		// This draws the black square where the selected item would be if you were holding it
-		if (!isMode("minicraft.settings.mode.creative") || player.activeItem != null) {
+		// This draws the black bar behind the held item's name; nothing to show (and no stray black block) when empty-handed.
+		if (player.activeItem != null) {
 			for (int x = 10; x < 26; x++) {
 				screen.render(x * 8, Screen.h - 8, 5, 2, 0, hudSheet.getSheet());
 			}

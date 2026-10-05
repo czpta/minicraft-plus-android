@@ -26,6 +26,14 @@ public final class AndroidBridge {
 	private static boolean started = false;
 	private static final Handler ui = new Handler(Looper.getMainLooper());
 	public static volatile boolean crisp = true;
+	/** Nanoseconds spent per second in game ticks, whole render() calls, and the part of render that hands pixels to the screen. */
+	public static volatile long tickNs, renderNs, presentNs;
+	public static String perf(int fps, int tps) {
+		long t = tickNs, r = renderNs, p = presentNs;
+		tickNs = renderNs = presentNs = 0;
+		return String.format("fps=%d tps=%d | tick %.2f ms | render %.2f ms = draw %.2f + present %.2f", fps, tps,
+			t / 1e6 / Math.max(1, tps), r / 1e6 / Math.max(1, fps), (r - p) / 1e6 / Math.max(1, fps), p / 1e6 / Math.max(1, fps));
+	}
 	/** Vertical shift (px, negative = up) of the rendered game, so a focused text field isn't hidden by the keyboard. */
 	public static volatile int yShift = 0;
 
@@ -84,12 +92,23 @@ public final class AndroidBridge {
 				File save = a.getExternalFilesDir(null);
 				if (save == null) save = a.getFilesDir();
 				redirectLogFiles(save);
+				applyFont(a);
 				Game.main(new String[] { "--savedir", save.getAbsolutePath() });
 			} catch (Throwable e) {
 				fatal(e);
 			}
 		}, "minicraft-game", 16 * 1024 * 1024);
 		t.start();
+	}
+
+	/** The game reads its font from the default pack's gui/font.png; copy the chosen sheet over it before the game loads. */
+	private static void applyFont(Activity a) {
+		try {
+			String choice = a.getSharedPreferences("minicraft", Context.MODE_PRIVATE).getString("font", "classic");
+			File src = new File(resDir, "extra_fonts/font_" + ("monocraft".equals(choice) ? "monocraft" : "classic") + ".png");
+			File dst = new File(resDir, "assets/textures/gui/font.png");
+			java.nio.file.Files.copy(src.toPath(), dst.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		} catch (Throwable t) { android.util.Log.w("Minicraft", "font switch failed", t); }
 	}
 
 	/** tinylog.properties uses relative paths ("logs/log.txt"); on Android the working dir is "/", so point them at app storage. */
