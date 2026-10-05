@@ -13,6 +13,7 @@ public class BufferStrategy {
 	public BufferStrategy(awtshim.Canvas owner) { this.owner = owner; }
 
 	public Graphics2D getDrawGraphics() {
+		if (owner.presenter != null) return new GlGraphics(owner.presenter);
 		long t0 = System.nanoTime();
 		SurfaceHolder h = owner.holder;
 		locked = null;
@@ -29,6 +30,7 @@ public class BufferStrategy {
 	}
 
 	public void show() {
+		if (owner.presenter != null) return; // the GL thread presents
 		long t0 = System.nanoTime();
 		if (locked != null && lockedHolder != null) {
 			try { lockedHolder.unlockCanvasAndPost(locked); } catch (Throwable ignored) {}

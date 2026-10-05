@@ -41,7 +41,7 @@ public class ContainerDisplay extends Display {
 			onScreenKeyboardMenu.setVisible(false);
 		}
 
-		menus[1].translate(menus[0].getBounds().getWidth() + padding, 0);
+		layout();
 
 		if (menus[1].getNumOptions() == 0) onSelectionChange(1, 0);
 	}
@@ -52,17 +52,13 @@ public class ContainerDisplay extends Display {
 	protected void onSelectionChange(int oldSel, int newSel) {
 		super.onSelectionChange(oldSel, newSel);
 
-		if (oldSel == newSel)
-			return; // this also serves as a protection against access to menus[0] when such may not exist.
+		// The boxes no longer slide when the selection changes; only the cursor moves between them.
+	}
 
-		int shift = 0;
-
-		if (newSel == 0) shift = padding - menus[0].getBounds().getLeft();
-		if (newSel == 1) shift = (Screen.w - padding) - menus[1].getBounds().getRight();
-
-		for (Menu m : menus) {
-			m.translate(shift, 0);
-		}
+	/** Inventory is anchored to the left edge and the chest to the right edge, and they stay there. */
+	private void layout() {
+		menus[0].translate(padding - menus[0].getBounds().getLeft(), 0);
+		menus[1].translate((Screen.w - padding) - menus[1].getBounds().getRight(), 0);
 	}
 
 	private int getOtherIdx() {
@@ -361,7 +357,6 @@ public class ContainerDisplay extends Display {
 	private void update() {
 		menus[0] = new InventoryMenu((InventoryMenu) menus[0]);
 		menus[1] = new InventoryMenu((InventoryMenu) menus[1]);
-		menus[1].translate(menus[0].getBounds().getWidth() + padding, 0);
-		onSelectionChange(0, selection);
+		layout();
 	}
 }

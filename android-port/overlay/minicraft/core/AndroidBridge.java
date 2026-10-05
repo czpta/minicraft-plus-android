@@ -101,6 +101,38 @@ public final class AndroidBridge {
 		t.start();
 	}
 
+	private static android.content.SharedPreferences prefs() { return activity.getSharedPreferences("minicraft", Context.MODE_PRIVATE); }
+
+	/** Options-menu entry: game font. Changing it swaps the font sheet and reloads resources live. */
+	public static minicraft.screen.entry.ArrayEntry<String> fontEntry() {
+		minicraft.screen.entry.ArrayEntry<String> e = new minicraft.screen.entry.ArrayEntry<String>("Game font", new String[] { "Classic", "Minecraft style" });
+		e.setSelection("monocraft".equals(prefs().getString("font", "classic")) ? 1 : 0);
+		final boolean[] armed = { false };
+		e.setChangeAction(v -> {                 // setChangeAction fires once immediately; ignore that call
+			if (!armed[0]) return;
+			prefs().edit().putString("font", "Minecraft style".equals(v) ? "monocraft" : "classic").apply();
+			applyFont(activity);
+			minicraft.screen.ResourcePackDisplay.reloadResources();
+		});
+		armed[0] = true;
+		return e;
+	}
+
+	/** Options-menu entry: crisp integer scaling vs stretch-to-fit. */
+	public static minicraft.screen.entry.ArrayEntry<String> scalingEntry() {
+		minicraft.screen.entry.ArrayEntry<String> e = new minicraft.screen.entry.ArrayEntry<String>("Scaling", new String[] { "Crisp (integer)", "Stretch to fit" });
+		e.setSelection(prefs().getBoolean("crisp", true) ? 0 : 1);
+		final boolean[] armed = { false };
+		e.setChangeAction(v -> {
+			if (!armed[0]) return;
+			crisp = "Crisp (integer)".equals(v);
+			prefs().edit().putBoolean("crisp", crisp).apply();
+			applyScale();
+		});
+		armed[0] = true;
+		return e;
+	}
+
 	/** The game reads its font from the default pack's gui/font.png; copy the chosen sheet over it before the game loads. */
 	private static void applyFont(Activity a) {
 		try {
@@ -119,6 +151,8 @@ public final class AndroidBridge {
 			if (k.endsWith(".file")) System.setProperty("tinylog." + k, new File(base, props.getProperty(k).trim()).getAbsolutePath());
 		}
 	}
+
+	public static void attachPresenter(awtshim.image.GlPresenter p) { Renderer.canvas.presenter = p; }
 
 	public static void surfaceChanged(android.view.SurfaceHolder holder, int w, int h) {
 		Renderer.canvas.holder = holder;

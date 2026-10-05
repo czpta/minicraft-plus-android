@@ -80,6 +80,10 @@ sub('core/Initializer.java', 'Updater.tick(); // Calls the tick method (in which
     '{ long t0 = System.nanoTime(); Updater.tick(); minicraft.core.AndroidBridge.tickNs += System.nanoTime() - t0; }')
 sub('core/Initializer.java', 'Renderer.render();', '{ long t0 = System.nanoTime(); Renderer.render(); minicraft.core.AndroidBridge.renderNs += System.nanoTime() - t0; }')
 
+# Options menu: font + scaling live here (the desktop "OpenGL hardware acceleration" toggle means nothing on Android)
+sub('screen/OptionsMainMenuDisplay.java', 'Settings.getEntry("hwa"),',
+    'minicraft.core.AndroidBridge.fontEntry(),\n\t\t\tminicraft.core.AndroidBridge.scalingEntry(),')
+
 # ---- window / frame ----
 drop_imports('core/Initializer.java', r'javax\.swing\.WindowConstants|java\.awt\.(BorderLayout|Color)|java\.awt\.event\.\w+')
 replace_method('core/Initializer.java', r'static void createAndDisplayFrame\(\) \{', 'static void createAndDisplayFrame() {\n\t}')

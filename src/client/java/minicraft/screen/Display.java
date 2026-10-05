@@ -81,17 +81,15 @@ public class Display {
 			if (input.inputPressed(shift + "cursor-right") || input.rightTriggerPressed()) selection++;
 
 			if (prevSel != selection) {
-				Sound.play("select");
-
 				int delta = selection - prevSel;
 				selection = prevSel;
-				do {
+				do { // no wrap-around: pressing right on the right-most panel does nothing (and left on the left-most)
 					selection += delta;
-					if (selection < 0) selection = menus.length - 1;
-					selection = selection % menus.length;
+					if (selection < 0 || selection >= menus.length) { selection = prevSel; break; }
 				} while (!menus[selection].isSelectable() && selection != prevSel);
 
 				changedSelection = prevSel != selection;
+				if (changedSelection) Sound.play("select");
 			}
 
 			if (changedSelection)

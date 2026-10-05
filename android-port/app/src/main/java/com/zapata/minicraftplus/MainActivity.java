@@ -9,8 +9,7 @@ import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
+import awtshim.image.GlPresenter;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
@@ -23,6 +22,7 @@ public class MainActivity extends Activity {
 	private final InputRouter router = new InputRouter();
 	private SharedPreferences prefs;
 	private TouchOverlay overlay;
+	private android.opengl.GLSurfaceView glView;
 	private ImeView ime;
 	private boolean textWasActive = false;
 	private int imeHeight = 0;
@@ -37,8 +37,14 @@ public class MainActivity extends Activity {
 
 		FrameLayout root = new FrameLayout(this);
 		root.setBackgroundColor(Color.BLACK);
-		SurfaceView sv = new SurfaceView(this);
-		root.addView(sv);
+		glView = new android.opengl.GLSurfaceView(this);
+		glView.setEGLContextClientVersion(2);
+		glView.setEGLConfigChooser(8, 8, 8, 8, 0, 0);
+		GlPresenter presenter = new GlPresenter(glView);
+		AndroidBridge.attachPresenter(presenter);
+		glView.setRenderer(presenter);
+		glView.setRenderMode(android.opengl.GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+		root.addView(glView);
 		overlay = new TouchOverlay(this, router);
 		root.addView(overlay);
 		gear = new Button(this);
@@ -57,14 +63,6 @@ public class MainActivity extends Activity {
 		});
 		pollTextFields();
 
-		sv.getHolder().addCallback(new SurfaceHolder.Callback() {
-			@Override public void surfaceCreated(SurfaceHolder h) {}
-			@Override public void surfaceChanged(SurfaceHolder h, int f, int w, int hh) {
-				AndroidBridge.surfaceChanged(h, w, hh);
-				AndroidBridge.startGame();
-			}
-			@Override public void surfaceDestroyed(SurfaceHolder h) { AndroidBridge.surfaceDestroyed(); }
-		});
 		applySettings();
 	}
 
@@ -120,14 +118,13 @@ public class MainActivity extends Activity {
 	}
 
 	private void showSettings() {
-		final boolean[] v = { pref("touch", !InputRouter.hasPhysicalGamepad()), pref("swap", false), pref("crisp", true) };
-		final String oldFont = "monocraft".equals(prefs.getString("font", "classic")) ? "monocraft" : "classic";
+		final boolean[] v = { pref("touch", !InputRouter.hasPhysicalGamepad()), pref("swap", false) };
 		final int oldGear = prefs.getInt("gearAlpha", 35), oldTouch = prefs.getInt("touchAlpha", 100);
 
 		android.widget.LinearLayout box = new android.widget.LinearLayout(this);
 		box.setOrientation(android.widget.LinearLayout.VERTICAL);
 		box.setPadding(48, 24, 48, 0);
-		String[] labels = { "Show on-screen controls", "Swap A/B and X/Y (Nintendo layout)", "Crisp integer scaling (off = stretch to fit)" };
+		String[] labels = { "Show on-screen controls", "Swap A/B and X/Y (Nintendo layout)" };
 		for (int i = 0; i < labels.length; i++) {
 			final int idx = i;
 			android.widget.CheckBox cb = new android.widget.CheckBox(this);
@@ -135,37 +132,17 @@ public class MainActivity extends Activity {
 			cb.setOnCheckedChangeListener((c, on) -> v[idx] = on);
 			box.addView(cb);
 		}
-		android.widget.TextView ft = new android.widget.TextView(this);
-		ft.setText("Game font (restart to apply)"); ft.setPadding(0, 24, 0, 0);
-		box.addView(ft);
-		android.widget.RadioGroup rg = new android.widget.RadioGroup(this);
-		String[][] fonts = { { "classic", "Classic" }, { "monocraft", "Minecraft style (Monocraft, free OFL font)" } };
-		for (String[] f : fonts) {
-			android.widget.RadioButton rb = new android.widget.RadioButton(this);
-			rb.setText(f[1]); rb.setTag(f[0]); rb.setId(View.generateViewId());
-			rg.addView(rb);
-			if (f[0].equals(oldFont)) rg.check(rb.getId());
-		}
-		box.addView(rg);
 		final int[] gearVal = { oldGear }, touchVal = { oldTouch };
 		slider(box, "Settings button opacity", oldGear, p -> { gearVal[0] = p; gear.setAlpha(p / 100f); });
 		slider(box, "On-screen controls opacity", oldTouch, p -> { touchVal[0] = p; overlay.setAlpha(p / 100f); });
 
 		android.widget.ScrollView sv = new android.widget.ScrollView(this);
 		sv.addView(box);
-		new AlertDialog.Builder(this).setTitle("Minicraft+ controls & display").setView(sv)
+		new AlertDialog.Builder(this).setTitle("On-screen controls").setView(sv)
 			.setPositiveButton("Apply", (d, w) -> {
-				View sel = rg.findViewById(rg.getCheckedRadioButtonId());
-				String font = sel != null ? (String) sel.getTag() : oldFont;
-				prefs.edit().putBoolean("touch", v[0]).putBoolean("swap", v[1]).putBoolean("crisp", v[2])
-					.putString("font", font).putInt("gearAlpha", gearVal[0]).putInt("touchAlpha", touchVal[0]).apply();
+				prefs.edit().putBoolean("touch", v[0]).putBoolean("swap", v[1])
+					.putInt("gearAlpha", gearVal[0]).putInt("touchAlpha", touchVal[0]).apply();
 				applySettings();
-				if (!font.equals(oldFont)) {
-					new AlertDialog.Builder(this).setTitle("Restart to change font")
-						.setMessage("The new font applies on the next start. Restarting now loses unsaved progress (quick-save with Select + A first).")
-						.setPositiveButton("Restart now", (d2, w2) -> restartApp())
-						.setNegativeButton("Later", null).show();
-				}
 			})
 			.setNeutralButton("Control map", (d, w) -> new AlertDialog.Builder(this).setTitle("Control map").setMessage(
 				"D-pad / left stick: move, menu cursor\nA: attack / select\nB (or Back): exit / back\nX: inventory / menu\nY: crafting\n"
@@ -184,6 +161,9 @@ public class MainActivity extends Activity {
 		startActivity(i);
 		Runtime.getRuntime().exit(0);
 	}
+
+	@Override protected void onPause() { super.onPause(); if (glView != null) glView.onPause(); }
+	@Override protected void onResume() { super.onResume(); if (glView != null) glView.onResume(); }
 
 	@Override public void onWindowFocusChanged(boolean focus) {
 		super.onWindowFocusChanged(focus);

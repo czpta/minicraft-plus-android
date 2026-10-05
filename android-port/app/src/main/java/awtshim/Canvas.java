@@ -6,6 +6,8 @@ import awtshim.image.BufferStrategy;
 public class Canvas extends Component {
 	private BufferStrategy strategy;
 	public volatile android.view.SurfaceHolder holder;
+	/** When set, frames go to the GPU (OpenGL ES) instead of a CPU-locked canvas. */
+	public volatile awtshim.image.GlPresenter presenter;
 
 	public void setSize(int w, int h) { width = w; height = h; }
 	public void createBufferStrategy(int n) { strategy = new BufferStrategy(this); }
