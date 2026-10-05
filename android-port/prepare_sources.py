@@ -102,6 +102,9 @@ sub('screen/WorldGenDisplay.java', '		if (onScreenKeyboardMenu == null)\n			supe
 # Popup confirm/cancel (delete world, etc.) only listened for keyboard keys; accept the pad mapping too (A = select, B = exit)
 sub('screen/PopupDisplay.java', 'input.getMappedKey(callback.key).isClicked()', 'input.inputPressed(callback.key)')
 
+# Tutorial hint names the keyboard key for the quest panel; on a pad it is L3
+sub('screen/TutorialDisplayHandler.java', 'Game.input.getMapping("expandQuestDisplay")', '"L3"')
+
 # ---- desktop-only developer tools (Swing) ----
 os.remove(path('level/LevelViewer.java'))
 drop_imports('level/LevelGen.java', r'javax\.swing\.\w+')
