@@ -982,7 +982,11 @@ public class Load {
 	private void loadWorldInf(String filename) {
 		loadFromFile(location + "/Game" + extension, extradata);
 		long seed = Long.parseLong(extradata.get(1));
+		// World creation gives every level seed = World.random.nextLong() (in depth order, from the world seed). Use the same
+		// derivation here, otherwise any chunk that has to be regenerated (not in the save) comes out as a different map.
+		java.util.Random levelSeeds = new java.util.Random(seed);
 		for (int l = World.maxLevelDepth; l >= World.minLevelDepth; l--) {
+			long levelSeed = levelSeeds.nextLong();
 			LoadingDisplay.setMessage(Level.getDepthString(l), false);
 			int lvlidx = World.lvlIdx(l);
 			loadFromFile(location + filename + lvlidx + "/index" + extension, data);
@@ -993,7 +997,7 @@ public class Load {
 
 			ChunkManager map = new ChunkManager();
 			Level parent = World.levels[World.lvlIdx(l + 1)];
-			World.levels[lvlidx] = new Level((int)Settings.get("size"), (int)Settings.get("size"), seed, l, parent, false);
+			World.levels[lvlidx] = new Level((int)Settings.get("size"), (int)Settings.get("size"), levelSeed, l, parent, false);
 
 			Level curLevel = World.levels[lvlidx];
 			curLevel.chunkManager = map;
