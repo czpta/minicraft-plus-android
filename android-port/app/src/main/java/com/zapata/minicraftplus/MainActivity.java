@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
 	@Override protected void onCreate(Bundle b) {
 		super.onCreate(b);
 		prefs = getSharedPreferences("minicraft", MODE_PRIVATE);
+		AndroidBridge.autoload = getIntent().getStringExtra("autoload"); // test hook
 		if (getIntent().getStringExtra("font") != null) prefs.edit().putString("font", getIntent().getStringExtra("font")).apply(); // test hook
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 		AndroidBridge.attach(this);

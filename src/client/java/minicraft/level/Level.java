@@ -588,8 +588,11 @@ public class Level {
 	public void renderBackground(Screen screen, int xScroll, int yScroll) {
 		int xo = xScroll >> 4; // Latches to the nearest tile coordinate
 		int yo = yScroll >> 4;
-		int w = (Screen.w) >> 4; // There used to be a "+15" as in below method
-		int h = (Screen.h) >> 4;
+		// Round up: when the screen size is not a multiple of 16 (e.g. 216 or 248 px on the Thor's responsive layouts) the tile that
+		// is only partly visible must still be drawn, otherwise a black strip appears along the bottom/right edge that grows and
+		// shrinks as the player moves. (Upstream dropped the "+15" because its fixed 288x192 is an exact multiple of 16.)
+		int w = (Screen.w + 15) >> 4;
+		int h = (Screen.h + 15) >> 4;
 		screen.setOffset(xScroll, yScroll);
 		for (int y = yo; y <= h + yo; y++) {
 			for (int x = xo; x <= w + xo; x++) {

@@ -98,7 +98,20 @@ public final class AndroidBridge {
 			}
 		}, "minicraft-game", 16 * 1024 * 1024);
 		t.start();
+		if (autoload != null) { // test hook: --es autoload <world> jumps straight into an existing world
+			final String world = autoload;
+			new Thread(() -> {
+				try {
+					for (int i = 0; i < 300 && !(Game.getDisplay() instanceof minicraft.screen.TitleDisplay); i++) Thread.sleep(100);
+					Thread.sleep(500);
+					minicraft.screen.WorldSelectDisplay.setWorldName(world, true);
+					Game.setDisplay(new minicraft.screen.LoadingDisplay());
+				} catch (Throwable ignored) {}
+			}, "autoload").start();
+		}
 	}
+
+	public static volatile String autoload;
 
 	private static android.content.SharedPreferences prefs() { return activity.getSharedPreferences("minicraft", Context.MODE_PRIVATE); }
 
@@ -159,6 +172,7 @@ public final class AndroidBridge {
 		else if (w != lastW || h != lastH) toast("Screen changed - restart the game to fit its layout to this screen");
 		lastW = w; lastH = h;
 		applyScale();
+		android.util.Log.i("MinicraftLayout", "surface " + w + "x" + h + " -> internal " + Renderer.WIDTH + "x" + Renderer.HEIGHT + " scale " + Renderer.SCALE);
 	}
 
 	private static int lastW, lastH;
